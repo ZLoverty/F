@@ -93,4 +93,4 @@ if __name__ == "__main__":
         cv2.imwrite(os.path.join(blob_folder, f"{frame_num:04d}.jpg"), frame)
     
     # create video from images
-    os.system(f"ffmpeg -f concat -safe 0 -i {os.path.join(overlay_folder, 'filelist.txt')} -vf \"scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p\" -c:v libx264 -r 10 {os.path.join(blob_folder, 'preview.mp4')}")
+    os.system(f"ffmpeg -f concat -safe 0 -i {os.path.join(overlay_folder, 'filelist.txt')} -vf \"scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p\" -c:v libx264 -r 10 {os.path.join(blob_folder, 'preview.mp4')} -y")
