@@ -22,6 +22,7 @@ Edit
 ----
 
 Sep 12, 2024: Initial commit. 
+Sep 18, 2024: Add tolerance to expand_blob function.
 
 """
 
@@ -93,7 +94,7 @@ def calculate_mean_brightness(image, center, radius):
     mean_val = cv2.mean(image, mask=mask)[0]
     return mean_val
 
-def expand_blob(image, keypoint, max_iterations=10, step=1):
+def expand_blob(image, keypoint, max_iterations=10, step=1, tolerance=0.01):
     x, y = int(keypoint.pt[0]), int(keypoint.pt[1])
     initial_radius = int(keypoint.size / 2)
     best_radius = initial_radius
@@ -103,11 +104,13 @@ def expand_blob(image, keypoint, max_iterations=10, step=1):
         expanded_radius = best_radius + step
         expanded_brightness = calculate_mean_brightness(image, (x, y), expanded_radius)
         
-        if expanded_brightness > best_brightness:
+        if expanded_brightness > best_brightness * (1 + tolerance):
             best_brightness = expanded_brightness
             best_radius = expanded_radius
         else:
             break
+    
+    return best_radius
     
     keypoint.size = best_radius * 2  # Update the size attribute of the keypoint
 
