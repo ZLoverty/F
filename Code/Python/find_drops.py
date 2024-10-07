@@ -7,7 +7,7 @@ This script is used to find the drops in the data. It uses the data from the con
 1. read the image;
 2. preprocess the image, including: gray_scale, blur and erode;
 3. detect dark blobs in the image using `cv2.SimpleBlobDetector`;
-4. adaptively expand the blobs to include the bright contour.
+4. adaptively refine the detection results using either `expand_blob` or `refine_with_hough` function.
 
 This script reads an .avi video as the input image and saves the detected drops as a .csv file, which contains the x, y coordinates and the radius of the drops in each frame. It takes the path of the video `folder/{name}.avi` as the input argument and saves the .csv file in a subdirectory of the video folder `folder/tracking/{name}/blob/%04d.csv`
 
@@ -15,7 +15,7 @@ Syntax
 ------
 
 ```
-python find_drops.py video_path
+python find_drops.py video_path [--start_frame start_frame]
 ```
 
 Edit
@@ -23,7 +23,7 @@ Edit
 
 Sep 12, 2024: Initial commit. 
 Sep 18, 2024: Add tolerance to expand_blob function.
-
+Oct 07, 2024: Add refine_with_hough function to refine the detected droplets using Hough circle transform.
 """
 
 import cv2
@@ -32,6 +32,7 @@ import pandas as pd
 import os
 import argparse
 from myimagelib.myImageLib import show_progress
+import pdb
 
 #function to exrtract frames from a video file
 def get_frame_from_video(video_path, frame_number):
@@ -109,11 +110,28 @@ def expand_blob(image, keypoint, max_iterations=10, step=1, tolerance=0.01):
             best_radius = expanded_radius
         else:
             break
-    
-    return best_radius
-    
-    keypoint.size = best_radius * 2  # Update the size attribute of the keypoint
 
+    return best_radius * 2
+    
+    
+
+def refine_with_hough(image, keypoint):
+    """
+    Refine the keypoints using the Hough circle transform
+    """
+    h, w = image.shape
+    x, y = int(keypoint.pt[0]), int(keypoint.pt[1])
+    r = int(keypoint.size / 2)
+    x1, x2 = max(0, x-2*r), min(x+2*r, w)
+    y1, y2 = max(0, y-2*r), min(y+2*r, h)
+    roi = image[y1:y2, x1:x2]
+    circles = cv2.HoughCircles(roi, cv2.HOUGH_GRADIENT, dp=1, minDist=4*r, param1=1, param2=10, minRadius=r, maxRadius=3*r)
+    if circles is not None:
+        circles = np.uint16(np.around(circles))
+        cx, cy, radius = circles[0, 0]
+        return cx+x1, cy+y1, radius*2
+    else:
+        return x, y, r*2
 
 if __name__ == "__main__":
 
@@ -151,12 +169,19 @@ if __name__ == "__main__":
         keypoints = detect_droplets(processed)
 
         # refine detected droplets
+        refined_keypoints = []
         for i, keypoint in enumerate(keypoints):
-            expand_blob(processed, keypoint)
+            # here, we experiment different methods to refine the detected droplets
+            # available methods: expand_blob, refine_with_hough
+            # if expand_blob is used:
+            # x, y = keypoint.pt
+            # refined_keypoints.append((x, y, expand_blob(processed, keypoint)))
+            # if refine_with_hough is used:
+            refined_keypoints.append(refine_with_hough(processed, keypoint))
             show_progress(i/len(keypoints), label=f"Refining {i+1:d}/{len(keypoints):d}")
 
         # save the data in a csv file
-        data = [[keypoint.pt[0], keypoint.pt[1], keypoint.size / 2] for keypoint in keypoints]
+        data = [[keypoint[0], keypoint[1], keypoint[2] / 2] for keypoint in refined_keypoints]
         df = pd.DataFrame(data, columns=["x", "y", "r"])
         df.to_csv(os.path.join(data_folder, f"{frame_number:04d}.csv"), index=False)
 
