@@ -24,6 +24,7 @@ Edit
 Sep 12, 2024: Initial commit. 
 Sep 18, 2024: Add tolerance to expand_blob function.
 Oct 07, 2024: Add refine_with_hough function to refine the detected droplets using Hough circle transform.
+Oct 14, 2024: Process images in separate files, instead of a video. This allows for easier testing on individual frames.
 """
 
 import cv2
@@ -31,7 +32,7 @@ import numpy as np
 import pandas as pd
 import os
 import argparse
-from myimagelib.myImageLib import show_progress
+from myimagelib.myImageLib import show_progress, readdata
 import pdb
 
 #function to exrtract frames from a video file
@@ -137,32 +138,27 @@ if __name__ == "__main__":
 
     # parse the input arguments
     parser = argparse.ArgumentParser(description="Find droplets in the video")
-    parser.add_argument("video_path", type=str, help="Path to the video file")
-    parser.add_argument("--start_frame", type=int, default=25, help="Frame number to start processing")
+    parser.add_argument("img_path", type=str, help="Path to the images to be analyzed")
     args = parser.parse_args()
     
-    video_path = args.video_path
-    start_frame = args.start_frame
-
-    # create data folder for output
-    folder, filename = os.path.split(video_path)
-    name, _ = os.path.splitext(filename)
-    data_folder = os.path.join(folder, "tracking", name, "blob")
-    os.makedirs(data_folder, exist_ok=True)
+    img_path = args.img_path
 
     # read the video and detect droplets
-    cap = cv2.VideoCapture(video_path)
-    ret = True
-    frame_number = 0
-    while ret:
-        if frame_number < start_frame:
-            ret, _ = cap.read()
-            frame_number += 1
-            continue
+    # cap = cv2.VideoCapture(video_path)
+    # ret = True
+    # frame_number = 0
+    # while ret:
+    #     if frame_number < start_frame:
+    #         ret, _ = cap.read()
+    #         frame_number += 1
+    #         continue
 
-        # Read the frame
-        ret, frame = cap.read()
-        print(f"Processing frame {frame_number}\n")
+    #     # Read the frame
+    #     ret, frame = cap.read()
+    #     print(f"Processing frame {frame_number}\n")
+    l = readdata(img_path, "jpg")
+    for num, i in l.iterrows():
+        frame = cv2.imread(i.Dir)
 
         # detect droplets
         processed = preprocess(frame)
@@ -170,7 +166,7 @@ if __name__ == "__main__":
 
         # refine detected droplets
         refined_keypoints = []
-        for i, keypoint in enumerate(keypoints):
+        for j, keypoint in enumerate(keypoints):
             # here, we experiment different methods to refine the detected droplets
             # available methods: expand_blob, refine_with_hough
             # if expand_blob is used:
@@ -178,11 +174,9 @@ if __name__ == "__main__":
             # refined_keypoints.append((x, y, expand_blob(processed, keypoint)))
             # if refine_with_hough is used:
             refined_keypoints.append(refine_with_hough(processed, keypoint))
-            show_progress(i/len(keypoints), label=f"Refining {i+1:d}/{len(keypoints):d}")
+            show_progress(j/len(keypoints), label=f"Refining {j+1:d}/{len(keypoints):d}")
 
         # save the data in a csv file
         data = [[keypoint[0], keypoint[1], keypoint[2] / 2] for keypoint in refined_keypoints]
         df = pd.DataFrame(data, columns=["x", "y", "r"])
-        df.to_csv(os.path.join(data_folder, f"{frame_number:04d}.csv"), index=False)
-
-        frame_number += 1
+        df.to_csv(os.path.join(img_path, f"{i.Name}.csv"), index=False)
