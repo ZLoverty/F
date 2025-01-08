@@ -11,11 +11,11 @@ Before writing this note, I've already did [a short presentation](https://docs.g
 
 The following picture is an example of the hand labeled droplets. Most of the droplets are correctly detected so the analysis here is trusted. 
 
-<img src="/assets/images/2024/09/hand-labeling-example.jpg" width=700px>
+<img src="/assets/images/2024/09/hand-labeling-example.jpg" width=500px>
 
 I first measure the total number of droplets detected, as well as the mean radius of all droplets. The results are shown below. The total number of droplets decreases monotonically with time. This is expected because condensation always starts with many many tiny droplets. As the droplets grow in size, coalescence happens and leads to dramatic increase of droplet size. The mean radius of droplets increases before 20 min and decreases after 20 min. This is because at 20 min, we stop cooling the plate, effectively triggering the evaporation phase of the experiment. 
 
-<img src="/assets/images/2024/09/total-number-and-mean-radius.png" width=700px>
+<img src="/assets/images/2024/09/total-number-and-mean-radius.png" width=500px>
 
 I then measured the volume of droplets $V$ as
 
