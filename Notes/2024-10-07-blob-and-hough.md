@@ -9,6 +9,6 @@ To detect condensation droplets in images, I've been working with primarily two 
 
 To utilize the advantage of both methods, here I consider to combine them in order: first apply `simpleBlobDetector` to get the location of droplets, then crop the image in the vicinity of each detected droplet, and finally use `HoughCircle` to refine the droplet detection. 
 
-The following image shows a comparison between pure `impleBlobDetector` and `blob+hough`. For most detection, `blob+hough` increases the size of the detected droplet. Most of them are improved, with a few detections too big. `blob+hough` also amplifies the many wrong detections with were so small that were often overlooked. This is another asset of this method. With `blob+hough` detection, less manual correction is needed and the mistaken detections are easier to spot. 
+The following image shows a comparison between pure `simpleBlobDetector` and `blob+hough`. For most detection, `blob+hough` increases the size of the detected droplet. Most of them are improved, with a few detections too big. `blob+hough` also amplifies the many wrong detections with were so small that were often overlooked. This is another asset of this method. With `blob+hough` detection, less manual correction is needed and the mistaken detections are easier to spot. 
 
 <img src="/assets/images/2024/10/blob-hough-comparison.png" width=500px>  
