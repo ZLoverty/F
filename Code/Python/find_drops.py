@@ -67,7 +67,7 @@ def detect_droplets(frame):
 
     # Filter by Area
     params.filterByArea = True
-    params.minArea = 100
+    params.minArea = 10
     params.maxArea = 10000
 
     # Filter by Circularity
