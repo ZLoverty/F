@@ -15,8 +15,10 @@ Syntax
 ------
 
 ```
-python find_drops.py video_path [--start_frame start_frame]
+python find_drops.py img_path [--minThreshold minThreshold --maxThreshold maxThreshold --circularity circularity --convexity convexity --inertia inertia]
 ```
+
+
 
 Edit
 ----
@@ -25,6 +27,7 @@ Sep 12, 2024: Initial commit.
 Sep 18, 2024: Add tolerance to expand_blob function.
 Oct 07, 2024: Add refine_with_hough function to refine the detected droplets using Hough circle transform.
 Oct 14, 2024: Process images in separate files, instead of a video. This allows for easier testing on individual frames.
+Jan 21, 2025: Modify docstring to reflect the current syntax
 """
 
 import cv2
@@ -54,7 +57,7 @@ def preprocess(frame):
     eroded = cv2.erode(blurred_frame, kernel, iterations=1)
     return eroded
 
-def detect_droplets(frame):
+def detect_droplets(frame, args):
     # Set up SimpleBlobDetector parameters
     params = cv2.SimpleBlobDetector_Params()
 
@@ -62,8 +65,8 @@ def detect_droplets(frame):
     params.blobColor = 0
 
     # Change thresholds
-    params.minThreshold = 100
-    params.maxThreshold = 255
+    params.minThreshold = int(args.minThreshold)
+    params.maxThreshold = int(args.maxThreshold)
 
     # Filter by Area
     params.filterByArea = True
@@ -72,15 +75,15 @@ def detect_droplets(frame):
 
     # Filter by Circularity
     params.filterByCircularity = True
-    params.minCircularity = 0.5
+    params.minCircularity = float(args.circularity)
 
     # Filter by Convexity
     params.filterByConvexity = True
-    params.minConvexity = 0.5
+    params.minConvexity = float(args.convexity)
 
     # Filter by Inertia
     params.filterByInertia = True
-    params.minInertiaRatio = 0.5
+    params.minInertiaRatio = float(args.inertia)
 
     # Step 5: Create a detector with the parameters
     detector = cv2.SimpleBlobDetector_create(params)
@@ -113,8 +116,6 @@ def expand_blob(image, keypoint, max_iterations=10, step=1, tolerance=0.01):
             break
 
     return best_radius * 2
-    
-    
 
 def refine_with_hough(image, keypoint):
     """
@@ -139,44 +140,39 @@ if __name__ == "__main__":
     # parse the input arguments
     parser = argparse.ArgumentParser(description="Find droplets in the video")
     parser.add_argument("img_path", type=str, help="Path to the images to be analyzed")
+    parser.add_argument("--minThreshold", type=int, default=0, help="min threshold for blob detection")
+    parser.add_argument("--maxThreshold", type=int, default=255, help="max threshold for blob detection")
+    parser.add_argument("--circularity", type=float, default=.5, help="min area for blob detection")
+    parser.add_argument("--convexity", type=float, default=.5, help="min convexity for blob detection")
+    parser.add_argument("--inertia", type=float, default=.5, help="min inertia ratio for blob detection")
+    parser.add_argument("--refine", type=bool, default=True, help="whether to refine the detected droplets")
     args = parser.parse_args()
     
     img_path = args.img_path
 
-    # read the video and detect droplets
-    # cap = cv2.VideoCapture(video_path)
-    # ret = True
-    # frame_number = 0
-    # while ret:
-    #     if frame_number < start_frame:
-    #         ret, _ = cap.read()
-    #         frame_number += 1
-    #         continue
-
-    #     # Read the frame
-    #     ret, frame = cap.read()
-    #     print(f"Processing frame {frame_number}\n")
     l = readdata(img_path, "jpg")
     for num, i in l.iterrows():
         frame = cv2.imread(i.Dir)
 
         # detect droplets
         processed = preprocess(frame)
-        keypoints = detect_droplets(processed)
-
-        # refine detected droplets
-        refined_keypoints = []
-        for j, keypoint in enumerate(keypoints):
-            # here, we experiment different methods to refine the detected droplets
-            # available methods: expand_blob, refine_with_hough
-            # if expand_blob is used:
-            # x, y = keypoint.pt
-            # refined_keypoints.append((x, y, expand_blob(processed, keypoint)))
-            # if refine_with_hough is used:
-            refined_keypoints.append(refine_with_hough(processed, keypoint))
-            show_progress(j/len(keypoints), label=f"Refining {j+1:d}/{len(keypoints):d}")
+        keypoints = detect_droplets(processed, args)
 
         # save the data in a csv file
-        data = [[keypoint[0], keypoint[1], keypoint[2] / 2] for keypoint in refined_keypoints]
+        data = [[keypoint.pt[0], keypoint.pt[1], keypoint.size / 2] for keypoint in keypoints]
+
+        # refine detected droplets
+        if args.refine:
+            refined_keypoints = []
+            for j, keypoint in enumerate(keypoints):
+                # here, we experiment different methods to refine the detected droplets
+                # available methods: expand_blob, refine_with_hough
+                refined_keypoints.append(refine_with_hough(processed, keypoint))
+                show_progress(j/len(keypoints), label=f"Refining {j+1:d}/{len(keypoints):d}")
+            data = [[keypoint[0], keypoint[1], keypoint[2] / 2] for keypoint in refined_keypoints]
+        
         df = pd.DataFrame(data, columns=["x", "y", "r"])
+        # test params save
+        # df.to_csv(os.path.join(img_path, f"min_{args.minThreshold:d}_max_{args.maxThreshold:d}_cir_{args.circularity:.1f}_con_{args.convexity:.1f}_ine_{args.inertia:.1f}.csv"), index=False)
+        # image process save
         df.to_csv(os.path.join(img_path, f"{i.Name}.csv"), index=False)
