@@ -11,6 +11,7 @@ python report_early.py folder [-n nBins] [-o overlap]
 Edit
 ----
 * Apr 14, 2025: Initial commit.
+* Apr 21, 2025: (i) Save the data in h5 format. (ii) Fix the flux calculation by dividng by the area of the band.
 """
 
 import argparse
@@ -117,7 +118,7 @@ def compute_volume_and_flux(folder, start_time, interval, mpp, center, image_dim
     flux["t"] = flux.index * interval / 60 + start_time / 60
     volume["t"] = volume.index * interval / 60 + start_time / 60
 
-    return volume, flux, bins
+    return volume, flux, bins, binsize
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser(description="Generate report graphs for early data.")
@@ -132,6 +133,8 @@ if __name__=="__main__":
     
     info = read_info(folder)
     x0, y0, R = info["center"]
+    w, h = info["image_dims"]
+    mpp = info["mpp"]
     # print(info)
 
     # compute the time, number and size of droplets
@@ -139,14 +142,27 @@ if __name__=="__main__":
     # print(t, N, S)
 
     # compute volume and flux
-    V, F, bins = compute_volume_and_flux(folder, info["start_time"], info["interval"], info["mpp"], info["center"], info["image_dims"], nBins=args.n, overlap=args.o)
+    V, F, bins, binsize = compute_volume_and_flux(folder, info["start_time"], info["interval"], info["mpp"], info["center"], info["image_dims"], nBins=args.n, overlap=args.o)
 
     # compute flux as a function of distance
+    binarea = h * binsize * mpp**2 * 1e-6
     p_list = []
     for i in range(V.drop(columns="t").shape[1]):
-        x, y =V.t[:3], V.iloc[:3, i]
+        x, y =V.t[:], V.iloc[:, i] / binarea
         p = np.polyfit(x, y, 1)
         p_list.append(p[0])
+
+    # Save N, radii, volume and flux data to an h5 file
+    save_path = os.path.join(folder, "nrvf.h5")
+    with pd.HDFStore(save_path, mode="w") as store:
+        store["center"] = pd.Series([x0, y0, R], index=["x", "y", "R"])
+        store["bins"] = pd.Series(bins, index=np.arange(len(bins)))
+        store["binsize"] = pd.Series(binsize, index=[0])
+        store["N"] = pd.DataFrame({"t": t, "N": N})
+        store["R"] = pd.DataFrame({"t": t, "R": S})
+        store["V"] = V
+        store["F"] = F
+        store["Fx"] = pd.DataFrame({"x": bins, "F": p_list})
 
     # Make plots
     fig = plt.figure(figsize=(7, 7))
