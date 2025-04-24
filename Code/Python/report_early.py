@@ -12,6 +12,7 @@ Edit
 ----
 * Apr 14, 2025: Initial commit.
 * Apr 21, 2025: (i) Save the data in h5 format. (ii) Fix the flux calculation by dividng by the area of the band.
+* Apr 24, 2025: Fix bin calculation.
 """
 
 import argparse
@@ -85,7 +86,7 @@ def compute_volume_and_flux(folder, start_time, interval, mpp, center, image_dim
     l = readdata(folder, "csv")
     x0, y0, R = center
     binsize = image_dims[0] / (nBins - (nBins-1)*overlap)
-    bins = np.linspace(R, R+image_dims[0], nBins)
+    bins = np.linspace(R, R+image_dims[0]-binsize, nBins)
 
     distance_bin_data = {}
     for j in range(nBins):
