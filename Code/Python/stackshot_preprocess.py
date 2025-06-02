@@ -21,11 +21,13 @@ Edit
 
 Jun 28, 2024: Initial commit.
 Feb 20, 2025: Add a reverse action, to move images back to the original folder.
+Jun 02, 2025: Use re to look for number, and sort the file list numerically.
 """
 
 import os
 import argparse
-from myimagelib.myImageLib import readdata
+import glob
+import re
 import shutil
 
 argparse = argparse.ArgumentParser(description="Put stackshot images in separate folders, each of which contains a single stack of images. This is a necessary preprocessing for the program CZPBatch.exe to work properly. The folders will be named as stack%04d, starting from 0. The folder of images will be provided as a string argument. The number of images per stack will be provided as an integer argument.")
@@ -37,15 +39,19 @@ args = argparse.parse_args()
 image_folder = args.image_folder
 nImages = args.nImages
 
+def extract_number(filename):
+    match = re.search(r'Img(\d+)\.jpg', filename)
+    return int(match.group(1)) if match else -1
+
 if not args.reverse:
     
 
-    l = readdata(image_folder, "jpg")
-
+    l = glob.glob(os.path.join(image_folder, "Img*.jpg"))
+    l.sort(key=extract_number)
     # out folder numbering
     j = 0
 
-    for s in range(len(l)//nImages+1):
+    for s in range(len(l)//nImages):
         
         # create out folder
         out_folder = os.path.join(image_folder, "stack{:04d}".format(j))
@@ -53,16 +59,18 @@ if not args.reverse:
             os.makedirs(out_folder)
 
         # move images to out folder    
-        for num, i in l[s*nImages: (s+1)*nImages].iterrows():
-            os.rename(i.Dir, os.path.join(out_folder, i.Name+".jpg"))
+        for fileDir in l[s*nImages: (s+1)*nImages]:
+            filename = os.path.split(fileDir)[1]
+            os.rename(fileDir, os.path.join(out_folder, filename))
         
         j += 1
 else:
     # reverse action
     sfL = next(os.walk(image_folder))[1]
     for sf in sfL:
-        l = readdata(os.path.join(image_folder, sf), "jpg")
+        l = glob.glob(os.path.join(image_folder, sf, "*.jpg"), )
         # move images to out folder
-        for num, i in l.iterrows():
-            os.rename(i.Dir, os.path.join(image_folder, i.Name+".jpg"))
+        for fileDir in l:
+            filename = os.path.split(fileDir)[1]
+            os.rename(i.Dir, os.path.join(image_folder, filename))
         shutil.rmtree(os.path.join(image_folder, sf))
