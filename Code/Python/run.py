@@ -1,18 +1,16 @@
 import os
 
-folder = r"G:\My Drive\Research projects\F\Data"
-
-sfL = next(os.walk(folder))[1]
-
+main_folder = r"F:\F"
+sfL = ["05282025"]
 for sf in sfL:
-    ssfL = next(os.walk(os.path.join(folder, sf)))[1]
+    ssfL = next(os.walk(os.path.join(main_folder, sf)))[1]
     for ssf in ssfL:
-        if "early" in ssf:
-            early_folder = os.path.join(folder, sf, ssf, "crop")
-            if os.path.exists(os.path.join(early_folder, "nrvf.h5")):
-                print(f"{sf}/{ssf} Report already exists, skipping.")
-                continue
-            else:
-                print(f"Processing {sf}/{ssf}")
-                os.system("python report_early.py \"{}\" -n 8 -o 0.3".format(early_folder))
-        
+        if "stack" in ssf:
+            name = ssf.split("_")[0]
+            folder = os.path.join(main_folder, sf, ssf)
+            imgDir = os.path.join(folder, r"%04d.jpg")
+            outDir = os.path.join(main_folder, sf, f"{name}.mp4")
+            print(outDir)
+            if not os.path.exists(outDir):
+                print("converting")
+                os.system(f"ffmpeg -framerate 25 -i {imgDir} {outDir}")
